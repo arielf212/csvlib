@@ -10,17 +10,29 @@ csvlib.filename is text  # holds the name of the file csvlib is going to write i
 csvlib.writeValues is text vector
 # csvlib.read will store every delimited value it reads into here.
 csvlib.readValues is text vector
+# the length of csvlib.readValues
+csvlib.readValuesLen is number
+# the line number that needs to be read form the csv
+csvlib.readLineNumber is number
 
 #private values, do not use inside your own program:
 csvlib.private.i is number  # loop index
-csvlib.private.content is text  # file content
 csvlib.private.len is number  # length of the write vector
+csvlib.private.len2 is number  # another boring length variable
 # a temporary variable for holding the text we are currently writing
 csvlib.private.writeLine is text
 # value that is currently getting written
 csvlib.private.writeValue is Text
 # holds the check for having the delimiter inside a value
 csvlib.private.hasDelimiter is number
+csvlib.private.content is text  # content of file that was read
+csvlib.private.contentLines is text vector  # used for holding the split file
+csvlib.private.delimValues is text vector  # used for holding delimited values
+csvlib.private.readIndex is number  # current index in csvlib.readValues
+csvlib.private.readValue is text  # value that is currently getting read
+csvlib.private.encapsulated is number  # -1 if not inside encapsulation, otherwise whatever.
+csvlib.private.assemblyHolder is text  # holds text for assembling procedure
+csvlib.private.lastChar is text  # holds the last char of a text
 
 PROCEDURE:
     # setting up default values:
@@ -49,7 +61,9 @@ PROCEDURE:
     sub-procedure csvlib.writeLine
         # writes values from csvlib.writeValues into file named csvlib.filename
         # delimited by csvlib.delimiter. if a value includes csvlib.delimiter
-        # inside it, it is encapsulated in
+        # inside it, it is encapsulated in csvlib.capsule.
+        # IMPORTANT: this procedure also resets csvlib.writeValues, so don't
+        # store anything unrecoverable in there!
 
         # resetting private variables
         store 0 in csvlib.private.i  # resets counter
@@ -57,10 +71,88 @@ PROCEDURE:
         store "" in csvlib.private.writeLine
 
         while csvlib.private.i is less than csvlib.private.len do
-        store csvlib.writeValues:csvlib.private.i in csvlib.private.writeValue # global value for function use
-        call csvlib.private.appendSingle
-        incr csvlib.private.i
+            # global value for procedure use
+            store csvlib.writeValues:csvlib.private.i in csvlib.private.writeValue
+            call csvlib.private.appendSingle
+            incr csvlib.private.i
         repeat
         append csvlib.private.writeLine to file csvlib.filename
-        #append crlf to file csvlib.filename  # a newline is needed after a new line
+        clear csvlib.writeValues
+        append "\n" to file csvlib.filename  # a newline is needed after a new line
+
+    end sub-procedure
+
+    sub-procedure csvlib.private.trimEncapsulation
+        # removes the encapsulation from the assembled value
+        store length of csvlib.private.readValue in csvlib.private.len2 # get length
+        # decrease twice in order to remove "
+        subtract 2 from csvlib.private.len2 in csvlib.private.len2
+        # cut
+        substring csvlib.private.readValue from 1 length csvlib.private.len2 in csvlib.private.readValue
+    end sub-procedure
+
+    sub-procedure csvlib.private.assembleFullValue
+        # in case the value is encapsulated, this assembles it fully
+        # and stores it in csvlib.private.readValue
+        store csvlib.private.delimValues:csvlib.private.i in csvlib.private.readValue
+        # checks if it is encapsulated
+        get index of csvlib.capsule from csvlib.private.readValue in csvlib.private.encapsulated
+        # check length
+        store length of csvlib.private.readValue in csvlib.private.len2
+        decr csvlib.private.len2
+        get character at csvlib.private.len2 from csvlib.private.readValue in csvlib.private.lastChar
+        if csvlib.private.lastChar is equal to "\"" then
+            return # if it is encapsulated by design
+        else if csvlib.private.encapsulated is not equal to -1 then  # if it is encapsulated
+            incr csvlib.private.i # inclrease loop variable
+            while 1 is equal to 1 do
+                # get last index of value
+                store csvlib.private.delimValues:csvlib.private.i in csvlib.private.assemblyHolder
+                store length of csvlib.private.assemblyHolder in csvlib.private.len2
+                decr csvlib.private.len2
+                # checks if it is encapsulated
+                get index of csvlib.capsule from csvlib.private.assemblyHolder in csvlib.private.encapsulated
+                # join between full value and new part with a delimiter in between
+                in csvlib.private.readValue join csvlib.private.readValue csvlib.delimiter csvlib.private.assemblyHolder
+                if csvlib.private.encapsulated is equal to csvlib.private.len2 then
+                    break  # if encapsulation ended, end loop
+                end if
+                incr csvlib.private.i # increment loop
+                if csvlib.private.i is equal to csvlib.private.len then
+                    break  # if outer loop should quit, this quits too.
+                end if
+            repeat
+            call csvlib.private.trimEncapsulation
+        end if
+    
+    end sub-procedure
+
+    sub-procedure csvlib.readLine
+        # reads the specified line (csvlib.readLineNumber)
+        # from the specified file (csvlib.filename),
+        # separates the values by the delimiter and puts them in csvlib.readValues
+        # IMPORTANT: this procedure also resets csvlib.readValues, so don't
+        # store anything unrecoverable in there!
+        
+        # set up
+        load file csvlib.filename in csvlib.private.content
+        split csvlib.private.content by "\n" in csvlib.private.contentLines # split lines by new line
+        store csvlib.private.contentLines:csvlib.readLineNumber in csvlib.private.content # get needed line
+        split csvlib.private.content by csvlib.delimiter in csvlib.private.delimValues # seperates by delimiter
+        store index count of csvlib.private.delimValues in csvlib.private.len # stores length
+
+        store 0 in csvlib.private.i
+        store 0 in csvlib.private.readIndex
+        store 0 in csvlib.private.encapsulated
+        clear csvlib.readValues
+
+        while csvlib.private.i is less than csvlib.private.len do
+            call csvlib.private.assembleFullValue
+            store csvlib.private.readValue in csvlib.readValues:csvlib.private.readIndex
+            incr csvlib.private.i
+            incr csvlib.private.readIndex 
+        repeat
+
+        store csvlib.private.readIndex in csvlib.readValuesLen
+
     end sub-procedure

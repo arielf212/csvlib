@@ -21,5 +21,6 @@ store the filename inside `csvlib.filename`.
 #### write
 store everything you want to write inside `csvlib.writeValues` and call `csvlib.writeLine`.
 #### read
-store the line number inside `csvlib.lineNumber` and call `csvlib.readLine`.
+store the line number inside `csvlib.readLineNumber` and call `csvlib.readLine`.
 your values should be stored inside `csvlib.readValues`.
+the length of `csvlib.readValues` is stored at `csvlib.readValuesLen`.

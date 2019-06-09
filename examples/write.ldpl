@@ -1,0 +1,14 @@
+DATA:
+    i is number
+    amount is number
+PROCEDURE:
+    display "file to write?" crlf
+    accept csvlib.filename
+    display "how many items?" crlf
+    accept amount
+    while i is less than amount do
+        accept csvlib.writeValues:i
+        incr i
+    repeat
+    call csvlib.writeLine
+    display "done!" crlf

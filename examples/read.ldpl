@@ -1,0 +1,12 @@
+DATA:
+i is number
+PROCEDURE:
+    display "file to write?" crlf
+    accept csvlib.filename
+    display "line number?" crlf
+    accept csvlib.readLineNumber
+    call csvlib.readLine
+    while i is less than csvlib.readValuesLen do
+        display csvlib.readValues:i crlf
+        incr i
+    repeat
