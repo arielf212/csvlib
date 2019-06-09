@@ -1,0 +1,66 @@
+# this is a single-file csv writing and reading library written in ldpl, for ldpl. 
+
+DATA:
+# public variables:
+csvlib.delimiter is text  # will be inserted in between the written values
+# if a value includes the delimiter inside it, it is going to be  encapsulated between csvlib.capsule
+csvlib.capsule is text
+csvlib.filename is text  # holds the name of the file csvlib is going to write into
+# store everything you want to write in a new line here before calling csvlib.write
+csvlib.writeValues is text vector
+# csvlib.read will store every delimited value it reads into here.
+csvlib.readValues is text vector
+
+#private values, do not use inside your own program:
+csvlib.private.i is number  # loop index
+csvlib.private.content is text  # file content
+csvlib.private.len is number  # length of the write vector
+# a temporary variable for holding the text we are currently writing
+csvlib.private.writeLine is text
+# value that is currently getting written
+csvlib.private.writeValue is Text
+# holds the check for having the delimiter inside a value
+csvlib.private.hasDelimiter is number
+
+PROCEDURE:
+    # setting up default values:
+    store "," in csvlib.delimiter
+    store "\"" in csvlib.capsule
+
+
+    sub-procedure csvlib.private.encapsulate
+        # if csvlib.private.writeValue includes csvlib.delimiter, encapsulate it in quotes
+        get index of csvlib.delimiter from csvlib.private.writeValue in csvlib.private.hasDelimiter
+        if csvlib.private.hasDelimiter is not equal to -1 then # if it contains delimiter
+            in csvlib.private.writeValue join csvlib.capsule csvlib.private.writeValue csvlib.capsule
+        end if
+    end sub-procedure
+
+    sub-procedure csvlib.private.appendSingle
+        # appends a single value stored in private.writeValue into private.wirteLine
+        call csvlib.private.encapsulate  # will encapsulate writeValue for safe use
+        if csvlib.private.writeLine is not equal to "" then
+            # a delimiter shouldn't exist at start of line
+            join csvlib.private.writeLine and csvlib.delimiter in csvlib.private.writeLine
+        end if
+        join csvlib.private.writeLine and csvlib.private.writeValue in csvlib.private.writeLine
+    end sub-procedure
+
+    sub-procedure csvlib.writeLine
+        # writes values from csvlib.writeValues into file named csvlib.filename
+        # delimited by csvlib.delimiter. if a value includes csvlib.delimiter
+        # inside it, it is encapsulated in
+
+        # resetting private variables
+        store 0 in csvlib.private.i  # resets counter
+        store index count of csvlib.writeValues in csvlib.private.len
+        store "" in csvlib.private.writeLine
+
+        while csvlib.private.i is less than csvlib.private.len do
+        store csvlib.writeValues:csvlib.private.i in csvlib.private.writeValue # global value for function use
+        call csvlib.private.appendSingle
+        incr csvlib.private.i
+        repeat
+        append csvlib.private.writeLine to file csvlib.filename
+        #append crlf to file csvlib.filename  # a newline is needed after a new line
+    end sub-procedure
